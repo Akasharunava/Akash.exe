@@ -1,0 +1,296 @@
+html {
+    scrollbar-gutter: stable;
+    scrollbar-width: none;
+}
+
+body {
+    width: 90%;
+    background-color: #8B0000;
+    margin-left: 8vw;
+    padding: 0;
+    background-image: 
+        url("img/Rectangle.png"),
+        url("img/Rectangleflip.png");
+    background-repeat: repeat-y, repeat-y;
+    background-position: left top, right top;
+    background-size: 13vw 1000%, 13vw 1000%;
+    user-select: none;
+    --size: 5.5vw;
+    --trans: 0.3s;
+    
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -9999;
+  pointer-events: none;
+  background: url("img/grain.png");
+  background-size: 130px;
+  opacity: 0.1;
+}
+
+body.grabbing { 
+    cursor: grabbing; 
+}
+
+.me {
+  position: relative;
+  top: -93vw;
+  right: -39vw;
+  width: 50vw;
+  perspective: 1000px;
+  transform-style: preserve-3d;
+}
+
+.curve {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  -webkit-user-drag: none;
+  transform: translateZ(-30px);
+  transition: transform 0.3s ease-out;
+}
+
+.myPics {
+  position: absolute;
+  transition: transform 0.3s ease-out;
+  inset: 0;
+  width: 38vw;
+  top: -14vw;
+  left: 6.5vw;
+  clip-path: inset(0 0 1vw 0);
+  -webkit-mask-image:
+    linear-gradient(to bottom, #000 80%, transparent 90%),
+    linear-gradient(to right, #000 80%, transparent 90%);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(176deg, #000 80%, transparent 93%),
+    linear-gradient(to right, #000 85%, transparent 95%);
+  mask-composite: intersect;
+  -webkit-user-drag: none;
+  transform: translateZ(30px);
+}
+
+.clean {
+  position: absolute;
+  z-index: -9998;
+  pointer-events: none;
+}
+
+h1 {
+    color: #FFFFFF;
+    font-family: 'Kalnia', serif;
+    font-optical-sizing: auto;
+    font-weight: 500;
+    font-style: normal;
+    font-variation-settings:
+    "wdth" 100;
+    font-size: 6.5vw;
+    margin-top: 0vw;
+    margin-left: 0vw;
+    display: inline-block;
+    padding-bottom: 0.03em;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 303 13' preserveAspectRatio='none'%3E%3Cpath d='M0 5 Q5 0 10 5 T20 5 T30 5 T40 5 T50 5 T60 5 T70 5 T80 5 T90 5 T100 5 T110 5 T120 5 T130 5 T140 5 T150 5 T160 5 T170 5 T180 5 T190 5 T200 5 T210 5 T220 5 T230 5 T240 5 T250 5 T260 5 T270 5 T280 5' fill='none' stroke='white' stroke-width='2.5' /%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: left bottom;
+    background-size: 100% 0.25em;
+}
+
+.contact {
+  margin-top: 17.5vw;
+  font-size: 4vw;
+  color: #FFFFFF;
+  font-family: "Libre Bodoni", serif;
+  font-optical-sizing: auto;
+  font-weight: 300;
+  font-style: normal;
+  text-decoration: underline;
+  text-decoration-thickness: 0.2vw;
+  text-underline-offset: 0.5vw;
+}
+
+.socials {
+  position: relative;
+  width: 5vw;
+  margin-top: -1.5vw;
+  margin-left: 0vw;
+  -webkit-user-drag: none;
+  display: flex;
+  gap: 1.2vw;
+  
+}
+
+
+.social {
+  inset: 0;
+  position: absolute;
+  display: block;
+  width: var(--size);
+  opacity: 1;
+  transition: opacity var(--trans) ease, margin-top var(--trans) ease;
+  pointer-events: none;
+  margin-top: 0;
+}
+
+.social.hidden {
+  opacity: 0;
+  margin-top: -1vw;
+}
+
+.hidden-social {
+  inset: 0;
+  position: absolute;
+  display: block;
+  width: var(--size);
+  pointer-events: none;
+  opacity: 0;
+  margin-top: 0vw;
+  transition: opacity var(--trans) ease, margin-top var(--trans) ease;
+}
+
+.hidden-social.show {
+  opacity: 1;
+  margin-top: -1vw;
+}
+
+.collider {
+  opacity: 0;
+  position: absolute;
+  inset: 0;
+  width: var(--size);
+}
+
+.pixels {
+    margin-left: -8vw;
+    margin-top: -28vw;
+    width: 110%;
+    height: 50%;
+    object-fit: cover;
+    display: block;
+    rendering: pixelated;
+}
+
+.desc {
+    color: #FFFFFF;
+    font-family: "Mali", cursive;
+    font-weight: 300;
+    font-style: normal;
+    font-size: 1.6vw;
+    margin-top: -2vw;
+}
+
+.circle {
+    width: 14vw;
+    margin-left: -8vw;
+    margin-top: 28vw;
+    -webkit-user-drag: none;
+}
+
+.dial {
+    position: absolute;
+    width: 35vw;
+    margin-left: -30.8vw;
+    margin-top: 24.4vw;
+    transform-origin: 48.07% 50%;
+    transform: rotate(0deg);
+    -webkit-user-drag: none;
+    aspect-ratio: 1581 / 1641;
+    top: 24.1vw;
+    left: 14.06vw;
+}
+
+.spoke {
+  position: absolute;
+  left: 48.07%;
+  top: 50%;
+  width: 54%;
+  height: 0;
+  transform-origin: left center;
+  transform: rotate(var(--a));
+}
+.label {
+  position: absolute;
+  left: calc(100% + 1vw);
+  top: 0;
+  white-space: nowrap;
+  transform-origin: left center;
+  transform: translateY(-50%) scale(calc(1 + 0.8 * var(--sel, 0)));
+  font-family: "Josefin Sans", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 370;
+  font-style: normal;
+  color: #FFFFFF;
+  font-size: 1.6vw;
+  font-weight: calc(320 + 50 * var(--sel, 0));
+  opacity: calc(0.7 + 0.3 * var(--sel, 0))
+}
+
+.works-box {
+  position: absolute;
+  left: 37vw;
+  top: 66.9vw;
+  transform: translateY(-50%);
+  width: 50vw;
+  height: 29.6vw;
+
+  --slide: 32vw;
+  opacity: 0;
+  scale: 0.94;
+  pointer-events: none;
+  z-index: 0;
+  transition: opacity 0.4s ease var(--pop-delay, 0s), scale 0.6s ease var(--pop-delay, 0s);
+  --slide: 32vw;
+}
+
+
+.works-bg {
+  --box-color: #3a0000;
+  position: absolute;
+  inset: 0;
+  background: var(--box-color);
+  border-radius: 5vw;
+  corner-shape: squircle;
+  opacity: 0.5;
+}
+
+.works-bg::before {
+  content: "";
+  position: absolute;
+  right: calc(100% - 1px);
+  top: 50%;
+  width: 4vw;
+  height: 5vw;
+  transform: translateY(-50%);
+  background: var(--box-color);
+  clip-path: polygon(0 50%, 100% 0, 100% 100%);
+}
+
+body.locked .works-box.is-active {
+  opacity: 1;
+  scale: 1;
+  z-index: 2;
+  pointer-events: auto;
+}
+
+.works-box.is-leaving {
+  z-index: 1;
+  animation: box-leave 0.9s ease both;
+}
+
+body.scrubbing .works-box {
+  scale: 1;
+  transition: opacity 0.2s ease;
+}
+
+@keyframes box-leave {
+  0%   { translate: 0 0; opacity: 1; scale: 1; z-index: 3; }
+  45%  { translate: 0 calc(var(--dir) * var(--slide)); opacity: 1; scale: 1; z-index: 3; }
+  46%  { z-index: 1; }
+  100% { translate: 0 0; opacity: 0; scale: 0.94; z-index: 1; }
+}
+
+.end {
+    margin-top: 150vw
+}
