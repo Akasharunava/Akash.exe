@@ -104,9 +104,66 @@ function applyScroll(deltaY) {
   snapTimer = setTimeout(snapToTick, 120);
 }
 
-window.addEventListener("wheel", (e) => applyScroll(e.deltaY));
+document.querySelectorAll(".works-items").forEach((strip) => {
+  let down = false, startX = 0, startScroll = 0;
+  strip.addEventListener("pointerdown", (e) => {
+    if (e.pointerType !== "mouse") return;
+    down = true;
+    startX = e.clientX;
+    startScroll = strip.scrollLeft;
+    strip.setPointerCapture(e.pointerId);
+    document.body.classList.add("grabbing");
+  });
+  strip.addEventListener("pointermove", (e) => {
+    if (down) strip.scrollLeft = startScroll - (e.clientX - startX);
+  });
+  const end = () => { down = false; document.body.classList.remove("grabbing"); };
+  strip.addEventListener("pointerup", end);
+  strip.addEventListener("pointercancel", end);
+});
+
+window.addEventListener("wheel", (e) => {
+  if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+  applyScroll(e.deltaY);
+});
+
+document.querySelectorAll(".works-items").forEach((strip) => {
+  let targetX = 0, gliding = false;
+  let down = false, startX = 0, startScroll = 0;
+
+  function glide() {
+    const diff = targetX - strip.scrollLeft;
+    if (Math.abs(diff) < 1) { strip.scrollLeft = targetX; gliding = false; return; }
+    strip.scrollLeft += Math.sign(diff) * Math.max(1, Math.abs(diff) * 0.165);
+    requestAnimationFrame(glide);
+  }
+
+  strip.addEventListener("wheel", (e) => {
+    if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+    if (strip.scrollWidth <= strip.clientWidth) return;
+    e.stopPropagation();
+    if (!gliding) targetX = strip.scrollLeft;
+    const max = strip.scrollWidth - strip.clientWidth;
+    targetX = Math.max(0, Math.min(max, targetX + e.deltaY));
+    if (!gliding) { gliding = true; requestAnimationFrame(glide); }
+  });
+
+  strip.addEventListener("pointerdown", (e) => {
+    if (e.pointerType !== "mouse") return;
+    down = true; startX = e.clientX; startScroll = strip.scrollLeft; targetX = strip.scrollLeft;
+    strip.setPointerCapture(e.pointerId);
+    document.body.classList.add("grabbing");
+  });
+  strip.addEventListener("pointermove", (e) => {
+    if (down) { strip.scrollLeft = startScroll - (e.clientX - startX); targetX = strip.scrollLeft; }
+  });
+  const end = () => { down = false; document.body.classList.remove("grabbing"); };
+  strip.addEventListener("pointerup", end);
+  strip.addEventListener("pointercancel", end);
+});
 
 window.addEventListener("pointerdown", (e) => {
+  if (e.target.closest(".works-items")) return;
   dragging = true;
   lastY = e.clientY;
   document.body.classList.add("grabbing");
