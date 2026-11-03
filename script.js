@@ -37,6 +37,35 @@ let velocity = 0;
 let lastTime = 0;
 const spokes = [...document.querySelectorAll(".spoke")];
 const angles = spokes.map((s) => parseFloat(s.style.getPropertyValue("--a")));
+let justDragged = false;
+
+document.querySelectorAll(".item").forEach((item) => {
+  if (item.querySelector("img, video")) return;
+  const { type, src } = item.dataset;
+
+  if (type === "embed") {
+    const id = src.match(/(?:embed\/|v=|youtu\.be\/)([\w-]{11})/)?.[1];
+    if (!id) return;
+    const img = document.createElement("img");
+    img.src = `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
+    img.alt = item.dataset.alt || "Video thumbnail";
+    img.loading = "lazy";
+    item.append(img);
+  } else if (type === "video") {
+    const v = document.createElement("video");
+    v.src = src + "#t=" + (item.dataset.time || 0.5);
+    v.muted = true;
+    v.preload = "metadata";
+    v.playsInline = true;
+    item.append(v);
+  } else if (type === "image") {
+    const img = document.createElement("img");
+    img.src = src;
+    img.alt = item.dataset.alt || "Project image";
+    img.loading = "lazy";
+    item.append(img);
+  }
+});
 
 function snapToTick() {
   if (!locked) return;
@@ -104,37 +133,22 @@ function applyScroll(deltaY) {
   snapTimer = setTimeout(snapToTick, 120);
 }
 
-document.querySelectorAll(".works-items").forEach((strip) => {
-  let down = false, startX = 0, startScroll = 0;
-  strip.addEventListener("pointerdown", (e) => {
-    if (e.pointerType !== "mouse") return;
-    down = true;
-    startX = e.clientX;
-    startScroll = strip.scrollLeft;
-    strip.setPointerCapture(e.pointerId);
-    document.body.classList.add("grabbing");
-  });
-  strip.addEventListener("pointermove", (e) => {
-    if (down) strip.scrollLeft = startScroll - (e.clientX - startX);
-  });
-  const end = () => { down = false; document.body.classList.remove("grabbing"); };
-  strip.addEventListener("pointerup", end);
-  strip.addEventListener("pointercancel", end);
-});
-
 window.addEventListener("wheel", (e) => {
+  if (lightbox.open) return;
   if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
   applyScroll(e.deltaY);
 });
 
 document.querySelectorAll(".works-items").forEach((strip) => {
   let targetX = 0, gliding = false;
-  let down = false, startX = 0, startScroll = 0;
+  let down = false, dragging = false, startX = 0, startScroll = 0;
+  let velocity = 0, lastX = 0, lastTime = 0;
+  const maxScroll = () => strip.scrollWidth - strip.clientWidth;
 
   function glide() {
     const diff = targetX - strip.scrollLeft;
     if (Math.abs(diff) < 1) { strip.scrollLeft = targetX; gliding = false; return; }
-    strip.scrollLeft += Math.sign(diff) * Math.max(1, Math.abs(diff) * 0.165);
+    strip.scrollLeft += Math.sign(diff) * Math.max(1, Math.abs(diff) * 0.12);
     requestAnimationFrame(glide);
   }
 
@@ -143,26 +157,103 @@ document.querySelectorAll(".works-items").forEach((strip) => {
     if (strip.scrollWidth <= strip.clientWidth) return;
     e.stopPropagation();
     if (!gliding) targetX = strip.scrollLeft;
-    const max = strip.scrollWidth - strip.clientWidth;
-    targetX = Math.max(0, Math.min(max, targetX + e.deltaY));
+    targetX = Math.max(0, Math.min(maxScroll(), targetX + e.deltaY));
     if (!gliding) { gliding = true; requestAnimationFrame(glide); }
   });
 
   strip.addEventListener("pointerdown", (e) => {
     if (e.pointerType !== "mouse") return;
-    down = true; startX = e.clientX; startScroll = strip.scrollLeft; targetX = strip.scrollLeft;
-    strip.setPointerCapture(e.pointerId);
-    document.body.classList.add("grabbing");
+    down = true; dragging = false;
+    startX = e.clientX; startScroll = strip.scrollLeft; targetX = strip.scrollLeft;
+    lastX = e.clientX; lastTime = performance.now(); velocity = 0;
   });
+
   strip.addEventListener("pointermove", (e) => {
-    if (down) { strip.scrollLeft = startScroll - (e.clientX - startX); targetX = strip.scrollLeft; }
+    if (!down) return;
+    if (!dragging) {
+      if (Math.abs(e.clientX - startX) < 5) return;
+      dragging = true;
+      strip.setPointerCapture(e.pointerId);
+      document.body.classList.add("grabbing");
+    }
+    strip.scrollLeft = startScroll - (e.clientX - startX);
+    targetX = strip.scrollLeft;
+    const now = performance.now();
+    const dt = Math.max(now - lastTime, 1);
+    velocity = velocity * 0.7 + ((e.clientX - lastX) / dt) * 0.3;
+    lastX = e.clientX; lastTime = now;
   });
-  const end = () => { down = false; document.body.classList.remove("grabbing"); };
+
+  const end = () => {
+    if (!down) return;
+    down = false;
+    document.body.classList.remove("grabbing");
+    if (dragging) {
+      justDragged = true;
+      setTimeout(() => (justDragged = false), 0);
+      if (performance.now() - lastTime < 80) {
+        const v = Math.max(-4, Math.min(4, velocity));
+        targetX = Math.max(0, Math.min(maxScroll(), strip.scrollLeft - v * 300));
+        if (!gliding) { gliding = true; requestAnimationFrame(glide); }
+      }
+    }
+    dragging = false;
+  };
   strip.addEventListener("pointerup", end);
   strip.addEventListener("pointercancel", end);
 });
 
+document.querySelectorAll(".item").forEach((item) => {
+  item.addEventListener("click", () => {
+    if (justDragged) return;
+    
+  });
+});
+
+const lightbox = document.querySelector("#lightbox");
+const stage = lightbox.querySelector(".lb-stage");
+
+function openLightbox(item) {
+  const type = item.dataset.type;
+  const src = item.dataset.src || item.querySelector("img")?.src;
+  let el;
+
+  if (type === "image") {
+    el = document.createElement("img");
+    el.src = src;
+  } else if (type === "video") {
+    el = document.createElement("video");
+    el.src = src;
+    el.controls = true;
+    el.autoplay = true;
+    el.playsInline = true;
+  } else if (type === "embed") {
+    el = document.createElement("iframe");
+    el.src = src + (src.includes("?") ? "&" : "?") + "autoplay=1&rel=0";
+    el.allow = "autoplay; fullscreen; picture-in-picture";
+    el.allowFullscreen = true;
+    el.referrerPolicy = "strict-origin-when-cross-origin";
+  }
+
+  el.className = "lb-media";
+  stage.replaceChildren(el);
+  lightbox.showModal();
+}
+
+lightbox.addEventListener("close", () => stage.replaceChildren());
+lightbox.addEventListener("click", (e) => {
+  if (e.target === lightbox || e.target === stage) lightbox.close();
+});
+lightbox.querySelector(".lb-close").addEventListener("click", () => lightbox.close());
+
+document.addEventListener("click", (e) => {
+  const item = e.target.closest(".item");
+  if (!item || justDragged) return;
+  openLightbox(item);
+});
+
 window.addEventListener("pointerdown", (e) => {
+  if (lightbox.open) return;
   if (e.target.closest(".works-items")) return;
   dragging = true;
   lastY = e.clientY;
