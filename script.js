@@ -39,6 +39,109 @@ const spokes = [...document.querySelectorAll(".spoke")];
 const angles = spokes.map((s) => parseFloat(s.style.getPropertyValue("--a")));
 let justDragged = false;
 
+const project = document.querySelector("#project");
+const pjTitle = project.querySelector(".pj-title");
+const pjItems = project.querySelector(".pj-items");
+const pjDesc = project.querySelector(".pj-desc");
+
+
+let closing = false;
+const panel = project.querySelector(".pj-panel");
+let sourceBox = null, sourceItems = [], sourceShown = [], busy = false;
+
+const vt = (fn) =>
+  document.startViewTransition
+    ? document.startViewTransition(fn)
+    : (fn(), { finished: Promise.resolve() });
+
+const tag = (el, name = "", group = "") => {
+  el.style.viewTransitionName = name;
+  el.style.viewTransitionGroup = group;
+};
+
+function visibleInRow(el) {
+  const row = el.closest(".works-items").getBoundingClientRect();
+  const r = el.getBoundingClientRect();
+  return r.right > row.left + 1 && r.left < row.right - 1;
+}
+
+function openProject(box) {
+  if (busy) return;
+  busy = true;
+  const row = box.querySelector(".works-items");
+  const originals = [...row.querySelectorAll(".item")];
+  const shown = originals.map(visibleInRow);
+  const smallDesc = box.querySelector(".works-desc");
+
+  tag(box, "works");
+  if (smallDesc) tag(smallDesc, "descold");
+  tag(row, "row", "contain");
+  originals.forEach((el, k) => { if (shown[k]) tag(el, "item" + k, "nearest"); });
+  sourceBox = box; sourceItems = originals; sourceShown = shown;
+
+  vt(() => {
+    [box, smallDesc, row, ...originals].forEach((el) => el && tag(el));
+
+    pjTitle.textContent = box.dataset.title || "";
+    pjItems.replaceChildren(...originals.map((i) => i.cloneNode(true)));
+    const more = box.querySelector(".works-more");
+    pjDesc.innerHTML = more ? more.innerHTML : smallDesc ? smallDesc.innerHTML : "";
+
+    tag(panel, "works");
+    tag(pjTitle, "pj-title");
+    tag(pjDesc, "pj-desc");
+    tag(pjItems, "row", "contain");
+    [...pjItems.children].forEach((el, k) =>
+      tag(el, shown[k] ? "item" + k : "pjitem" + k, "nearest")
+    );
+    project.showModal();
+  }).finished.finally(() => {
+    [panel, pjTitle, pjDesc, pjItems, ...pjItems.children].forEach((el) => tag(el));
+    busy = false;
+  });
+}
+
+function closeProject() {
+  if (busy || !project.open) return;
+  busy = true;
+  document.documentElement.classList.add("vt-closing"); 
+
+  const box = sourceBox, originals = sourceItems, shown = sourceShown;
+  const row = box.querySelector(".works-items");
+  const smallDesc = box.querySelector(".works-desc");
+
+  tag(panel, "works");
+  tag(pjTitle, "pj-title");
+  tag(pjDesc, "pj-desc");
+  tag(pjItems, "row", "contain");
+  [...pjItems.children].forEach((el, k) =>
+    tag(el, shown[k] ? "item" + k : "pjitem" + k, "nearest")
+  );
+
+  vt(() => {
+    [panel, pjTitle, pjDesc, pjItems, ...pjItems.children].forEach((el) => tag(el));
+    project.close();
+    pjItems.replaceChildren();
+
+    tag(box, "works");
+    if (smallDesc) tag(smallDesc, "descnew");
+    tag(row, "row", "contain");
+    originals.forEach((el, k) => { if (shown[k]) tag(el, "item" + k, "nearest"); });
+  }).finished.finally(() => {
+    document.documentElement.classList.remove("vt-closing");
+    [box, smallDesc, row, ...originals].forEach((el) => el && tag(el));
+    busy = false;
+  });
+}
+
+project.addEventListener("cancel", (e) => { e.preventDefault(); closeProject(); });
+project.querySelector(".pj-close").addEventListener("click", closeProject);
+document.addEventListener("click", (e) => {
+  const box = e.target.closest(".works-box");
+  if (!box || e.target.closest(".item") || justDragged) return;
+  openProject(box);
+});
+
 document.querySelectorAll(".item").forEach((item) => {
   if (item.querySelector("img, video")) return;
   const { type, src } = item.dataset;
@@ -133,8 +236,10 @@ function applyScroll(deltaY) {
   snapTimer = setTimeout(snapToTick, 120);
 }
 
+//Wheel
+
 window.addEventListener("wheel", (e) => {
-  if (lightbox.open) return;
+  if (lightbox.open || project.open) return;
   if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
   applyScroll(e.deltaY);
 });
@@ -252,8 +357,10 @@ document.addEventListener("click", (e) => {
   openLightbox(item);
 });
 
+//PointerDown
+
 window.addEventListener("pointerdown", (e) => {
-  if (lightbox.open) return;
+  if (lightbox.open || project.open) return;
   if (e.target.closest(".works-items")) return;
   dragging = true;
   lastY = e.clientY;
