@@ -407,7 +407,12 @@ body.grabbing .works-items { cursor: grabbing; }
   cursor: default;
 }
 #project[open] { display: block; }
-#project::backdrop { background: #000; }
+#project::backdrop { background: #3a0000; }
+#project[open]::backdrop { animation: pj-fade-in 0.55s cubic-bezier(0.55, 0, 1, 1) both; }
+#project.closing::backdrop { animation: pj-fade-out 0.45s cubic-bezier(0, 0.5, 0.45, 1) both; }
+
+@keyframes pj-fade-in { from { opacity: 0; } }
+@keyframes pj-fade-out { to { opacity: 0; } }
 
 .pj-panel { 
   position: fixed; 
@@ -425,32 +430,6 @@ body.grabbing .works-items { cursor: grabbing; }
   scrollbar-width: none;
 }
 
-::view-transition-group(*) {
-  animation-duration: 0.4s;
-  animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
-}
-::view-transition-old(root),
-::view-transition-new(root) {
-  animation-duration: 0.15s;
-  animation-timing-function: cubic-bezier(0.55, 0, 1, 1);
-}
-
-html.vt-closing::view-transition-old(root),
-html.vt-closing::view-transition-new(root) {
-  animation-timing-function: cubic-bezier(0, 0.5, 0.45, 1);
-}
-
-::view-transition-old(works),
-::view-transition-new(works) {
-  height: 100%;
-  object-fit: cover;
-  animation-timing-function: linear;
-}
-
-::view-transition-group(row) {
-  overflow: clip;
-  border-radius: 0.7vw;
-}
 
 .pj-title { margin: 0 0 2vw; font-size: 3.5vw; font-weight: 300; }
 .pj-items {
@@ -458,7 +437,7 @@ html.vt-closing::view-transition-new(root) {
   grid-template-columns: repeat(auto-fit, minmax(24vw, 1fr));
   gap: 2vw;
 }
-.pj-items .item { cursor: pointer; }
+.pj-items .item { cursor: pointer; transform-origin: 0 0;}
 .pj-desc { margin-top: 3vw; max-width: 60vw; font-size: clamp(0.9rem, 1.4vw, 1.4rem); line-height: 1.6; }
 .pj-close {
   position: fixed;

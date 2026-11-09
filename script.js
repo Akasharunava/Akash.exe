@@ -44,98 +44,141 @@ const pjTitle = project.querySelector(".pj-title");
 const pjItems = project.querySelector(".pj-items");
 const pjDesc = project.querySelector(".pj-desc");
 
+const pjClose = project.querySelector(".pj-close");
+const EASE = "cubic-bezier(0.32, 0.72, 0, 1)";
+const DUR = 550;
+const CLIP_R = 0.55;
+const FADE_IN = { duration: 300, delay: 250, easing: "ease-out", fill: "backwards" };
+let sourceBox = null, sourceItems = [], sourceRadius = 0, busy = false;
 
-let closing = false;
-const panel = project.querySelector(".pj-panel");
-let sourceBox = null, sourceItems = [], sourceShown = [], busy = false;
-
-const vt = (fn) =>
-  document.startViewTransition
-    ? document.startViewTransition(fn)
-    : (fn(), { finished: Promise.resolve() });
-
-const tag = (el, name = "", group = "") => {
-  el.style.viewTransitionName = name;
-  el.style.viewTransitionGroup = group;
+const descGhost = (el) => {
+  const r = rectOf(el), g = el.cloneNode(true);
+  Object.assign(g.style, { position: "fixed", left: r.left + "px", top: r.top + "px", width: r.width + "px", margin: "0", pointerEvents: "none", zIndex: "1" });
+  project.append(g);
+  return g;
 };
-
-function visibleInRow(el) {
-  const row = el.closest(".works-items").getBoundingClientRect();
-  const r = el.getBoundingClientRect();
-  return r.right > row.left + 1 && r.left < row.right - 1;
-}
+const rectOf = (el) => el.getBoundingClientRect();
+const insetOf = (inner, outer, radius = 0) =>
+  `inset(${inner.top - outer.top}px ${outer.right - inner.right}px ${outer.bottom - inner.bottom}px ${inner.left - outer.left}px round ${radius}px)`;
+const flipFrom = (from, to) =>
+  `translate(${from.left - to.left}px, ${from.top - to.top}px) scale(${from.width / to.width}, ${from.height / to.height})`;
+const grown = (r, pad) => ({ top: r.top - pad, left: r.left - pad, right: r.right + pad, bottom: r.bottom + pad });
+const boxKeys = (r, radius, opacity) => ({
+  left: r.left + "px", top: r.top + "px", width: r.width + "px", height: r.height + "px",
+  borderRadius: radius + "px", opacity,
+});
+const FULL = () => ({
+  left: "0px", top: "0px", width: innerWidth + "px", height: innerHeight + "px",
+  borderRadius: "0px", opacity: 1,
+});
 
 function openProject(box) {
   if (busy) return;
   busy = true;
+  const bg = box.querySelector(".works-bg");
   const row = box.querySelector(".works-items");
+  const body = box.querySelector(".works-body");
   const originals = [...row.querySelectorAll(".item")];
-  const shown = originals.map(visibleInRow);
   const smallDesc = box.querySelector(".works-desc");
 
-  tag(box, "works");
-  if (smallDesc) tag(smallDesc, "descold");
-  tag(row, "row", "contain");
-  originals.forEach((el, k) => { if (shown[k]) tag(el, "item" + k, "nearest"); });
-  sourceBox = box; sourceItems = originals; sourceShown = shown;
+  const bgRect = rectOf(bg), rowRect = rectOf(row);
+  const firsts = originals.map(rectOf);
+  const radius = parseFloat(getComputedStyle(bg).borderTopLeftRadius) || 0;
+  const rowRadius = (parseFloat(getComputedStyle(row).borderTopLeftRadius) || 0) * CLIP_R;
+  sourceBox = box; sourceItems = originals; sourceRadius = radius;
 
-  vt(() => {
-    [box, smallDesc, row, ...originals].forEach((el) => el && tag(el));
+  pjTitle.textContent = box.dataset.title || "";
+  pjItems.replaceChildren(...originals.map((i) => i.cloneNode(true)));
+  const more = box.querySelector(".works-more");
+  pjDesc.innerHTML = more ? more.innerHTML : smallDesc ? smallDesc.innerHTML : "";
 
-    pjTitle.textContent = box.dataset.title || "";
-    pjItems.replaceChildren(...originals.map((i) => i.cloneNode(true)));
-    const more = box.querySelector(".works-more");
-    pjDesc.innerHTML = more ? more.innerHTML : smallDesc ? smallDesc.innerHTML : "";
+  Object.assign(bg.style, { position: "fixed", inset: "auto", ...FULL() });
+  project.prepend(bg);
+  const ghost = smallDesc ? descGhost(smallDesc) : null;
+  body.style.visibility = "hidden";
+  pjScroll.scrollTop = 0;
+  pjTarget = 0;
+  project.showModal();
+  if (ghost) ghost.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, easing: "ease-out", fill: "forwards" }).finished.then(() => ghost.remove());
 
-    tag(panel, "works");
-    tag(pjTitle, "pj-title");
-    tag(pjDesc, "pj-desc");
-    tag(pjItems, "row", "contain");
-    [...pjItems.children].forEach((el, k) =>
-      tag(el, shown[k] ? "item" + k : "pjitem" + k, "nearest")
-    );
-    project.showModal();
-  }).finished.finally(() => {
-    [panel, pjTitle, pjDesc, pjItems, ...pjItems.children].forEach((el) => tag(el));
-    busy = false;
-  });
+  const clones = [...pjItems.children];
+  const gridRect = rectOf(pjItems);
+  const lasts = clones.map(rectOf);
+  const opts = { duration: DUR, easing: EASE };
+  const openClip = insetOf(grown(gridRect, innerWidth * 0.02), gridRect, rowRadius);
+
+  bg.animate([boxKeys(bgRect, radius, 0.5), FULL()], opts);
+  pjItems.animate([{ clipPath: insetOf(rowRect, gridRect, rowRadius) }, { clipPath: openClip }], opts);
+  clones.forEach((c, k) => c.animate([{ transform: flipFrom(firsts[k], lasts[k]) }, { transform: "none" }], opts));
+  [pjTitle, pjDesc, pjClose].forEach((el) => el.animate([{ opacity: 0 }, { opacity: 1 }], FADE_IN));
+  setTimeout(() => (busy = false), DUR);
 }
 
-function closeProject() {
+async function closeProject() {
   if (busy || !project.open) return;
   busy = true;
-  document.documentElement.classList.add("vt-closing"); 
-
-  const box = sourceBox, originals = sourceItems, shown = sourceShown;
+  project.classList.add("closing");
+  const box = sourceBox, originals = sourceItems;
+  const bg = project.querySelector(":scope > .works-bg");
   const row = box.querySelector(".works-items");
+  const body = box.querySelector(".works-body");
+  const home = rectOf(box), rowRect = rectOf(row), gridRect = rectOf(pjItems);
+  const rowRadius = (parseFloat(getComputedStyle(row).borderTopLeftRadius) || 0) * CLIP_R;
+  const clones = [...pjItems.children];
+  const lasts = clones.map(rectOf);
+  const firsts = originals.map(rectOf);
+  const opts = { duration: 450, easing: EASE, fill: "forwards" };
+  const openClip = insetOf(grown(gridRect, innerWidth * 0.02), gridRect, rowRadius);
+
   const smallDesc = box.querySelector(".works-desc");
+  const ghost = smallDesc ? descGhost(smallDesc) : null;
+  if (ghost) ghost.style.opacity = 0;
+  const anims = [
+    bg.animate([FULL(), boxKeys(home, sourceRadius, 0.5)], opts),
+    pjItems.animate([{ clipPath: openClip }, { clipPath: insetOf(rowRect, gridRect, rowRadius) }], opts),
+    ...clones.map((c, k) => c.animate([{ transform: "none" }, { transform: flipFrom(firsts[k], lasts[k]) }], opts)),
+    ...[pjTitle, pjDesc, pjClose].map((el) =>
+      el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 150, fill: "forwards" })
+    ),
+    ...(ghost ? [ghost.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 250, delay: 200, easing: "ease-out", fill: "both" })] : []),
+  ];
+  await Promise.all(anims.map((a) => a.finished));
+  if (ghost) ghost.remove();
 
-  tag(panel, "works");
-  tag(pjTitle, "pj-title");
-  tag(pjDesc, "pj-desc");
-  tag(pjItems, "row", "contain");
-  [...pjItems.children].forEach((el, k) =>
-    tag(el, shown[k] ? "item" + k : "pjitem" + k, "nearest")
-  );
-
-  vt(() => {
-    [panel, pjTitle, pjDesc, pjItems, ...pjItems.children].forEach((el) => tag(el));
-    project.close();
-    pjItems.replaceChildren();
-
-    tag(box, "works");
-    if (smallDesc) tag(smallDesc, "descnew");
-    tag(row, "row", "contain");
-    originals.forEach((el, k) => { if (shown[k]) tag(el, "item" + k, "nearest"); });
-  }).finished.finally(() => {
-    document.documentElement.classList.remove("vt-closing");
-    [box, smallDesc, row, ...originals].forEach((el) => el && tag(el));
-    busy = false;
-  });
+  bg.getAnimations().forEach((a) => a.cancel());
+  box.prepend(bg);
+  bg.removeAttribute("style");
+  body.style.visibility = "";
+  project.close();
+  pjItems.replaceChildren();
+  project.classList.remove("closing");
+  [pjItems, pjTitle, pjDesc, pjClose, ...clones].forEach((el) => el.getAnimations().forEach((a) => a.cancel()));
+  busy = false;
 }
 
+const pjScroll = project.querySelector(".pj-body");
+let pjTarget = 0, pjGliding = false;
+
+function pjGlide() {
+  const diff = pjTarget - pjScroll.scrollTop;
+  if (Math.abs(diff) < 1) { pjScroll.scrollTop = pjTarget; pjGliding = false; return; }
+  pjScroll.scrollTop += Math.sign(diff) * Math.max(1, Math.abs(diff) * 0.12);
+  requestAnimationFrame(pjGlide);
+}
+
+pjScroll.addEventListener("wheel", (e) => {
+  if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+  const max = pjScroll.scrollHeight - pjScroll.clientHeight;
+  if (max <= 0) return;
+  e.preventDefault();
+  if (!pjGliding) pjTarget = pjScroll.scrollTop;
+  pjTarget = Math.max(0, Math.min(max, pjTarget + e.deltaY));
+  if (!pjGliding) { pjGliding = true; requestAnimationFrame(pjGlide); }
+}, { passive: false });
+
 project.addEventListener("cancel", (e) => { e.preventDefault(); closeProject(); });
-project.querySelector(".pj-close").addEventListener("click", closeProject);
+pjClose.addEventListener("click", closeProject);
+
 document.addEventListener("click", (e) => {
   const box = e.target.closest(".works-box");
   if (!box || e.target.closest(".item") || justDragged) return;
